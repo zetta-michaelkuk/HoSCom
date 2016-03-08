@@ -1,0 +1,22 @@
+{
+  "name": "hos-com",
+  "version": "0.2.0",
+  "description": "Communication unit for HoS environment.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HoS0/HoSCom.git"
+  },
+  "keywords": [
+    "HoS"
+  ],
+  "author": "Ali Khoramshahi <al_kh31@yahoo.com> (al-kh.me)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/HoS0/HoSCom/issues"
+  },
+  "homepage": "https://github.com/HoS0/HoSCom#readme"
+}
