@@ -1,12 +1,15 @@
 module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64) ->
+    HoSConsumer = require("./HoSConsumer")(amqp, os, crypto, EventEmitter, URLSafeBase64)
+
     class HoSCom extends EventEmitter
         _amqpConnection: null
-        _serviceName: null
+        _serviceContract: null
         _serviceId: null
         _pendingMessages: []
-        _options: {durable: false, autoDelete: true}
+        _options: {durable: true, autoDelete: true}
+        HoSConsumers: []
 
-        constructor: (@_serviceName, @amqpurl = process.env.AMQP_URL, @username = process.env.AMQP_USERNAME, @password = process.env.AMQP_PASSWORD) ->
+        constructor: (@_serviceContract, @amqpurl = process.env.AMQP_URL, @username = process.env.AMQP_USERNAME, @password = process.env.AMQP_PASSWORD) ->
             super()
 
             ServiceInfo =
@@ -16,14 +19,9 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64) ->
 
             @_serviceId = URLSafeBase64.encode(new Buffer(JSON.stringify ServiceInfo))
 
+
         Connect: (callback)->
             @_amqpConnection = amqp.connect("amqp://#{@username}:#{@password}@#{@amqpurl}")
-
-            @_amqpConnection.then (conn)=>
-                return conn.createChannel()
-            .then (ch)=>
-                @consumeChannel = ch
-                @_CreatServiceExchange()
 
             @_amqpConnection.then (conn)=>
                 return conn.createChannel()
@@ -46,31 +44,22 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64) ->
                         @publishChannel = ch
                         console.log 'recreate channel'
 
-        _CreatServiceExchange: ()->
-            if @consumeChannel
-                ok = @consumeChannel.assertExchange(@_serviceName, 'direct', @_options)
-                ok.then ()=>
-                    @_CreateQueue @consumeChannel, "#{@_serviceName}.#{@_serviceId}", @_serviceId
-                    @_CreateQueue @consumeChannel, "#{@_serviceName}", ''
-            else
-                @emit('error', 'no consume channel')
-
-        _CreateQueue: (ch, queueName, bindingKey)->
-            ch.assertQueue(queueName, @_options)
-            .then ()=>
-                ch.bindQueue(queueName, @_serviceName, bindingKey)
-                ch.consume queueName, (msg)=>
-                    @emit('message', msg)
-                    ch.ack(msg);
+            for i in [1 .. 3]
+                @HoSConsumers[i] = new HoSConsumer(@, @amqpurl, @username, @password)
 
         SendMessage: (message, destination)->
             if @publishChannel
                 destinationParts = destination.split '.'
                 destService = destinationParts[0]
-                destId = destinationParts[1] ? ''
-                @consumeChannel.assertExchange(destService, 'direct', @_options)
+                key = ""
+                if destinationParts[1]
+                    key = "HoS.#{destService}.#{destinationParts[1]}"
+                else
+                    key = "HoS.#{destService}"
+
+                @publishChannel.assertExchange("HoS", 'topic', @_options)
                 .then ()=>
-                    @publishChannel.publish(destService, destId, new Buffer(JSON.stringify message))
+                    @publishChannel.publish("HoS", key, new Buffer(JSON.stringify message))
 
             else
                 @emit('error', 'no publish channel')
