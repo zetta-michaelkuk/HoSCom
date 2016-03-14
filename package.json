@@ -18,5 +18,8 @@
   "bugs": {
     "url": "https://github.com/HoS0/HoSCom/issues"
   },
-  "homepage": "https://github.com/HoS0/HoSCom#readme"
+  "homepage": "https://github.com/HoS0/HoSCom#readme",
+  "dependencies": {
+    "node-uuid": "^1.4.7"
+  }
 }
