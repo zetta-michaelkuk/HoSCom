@@ -8,15 +8,12 @@ uuid            = require('node-uuid');
 
 HosCom = require('./HoSCom')(amqp, os, crypto, EventEmitter, URLSafeBase64, uuid)
 
-service1 = JSON.parse(JSON.stringify(generalContract))
-service1.name = "service1"
+service = JSON.parse(JSON.stringify(generalContract))
+service.name = "service3"
 
-a = new HosCom service1, 'al-kh.me', 'alikh', 'alikh12358'
-a.on 'error', (err)->
-    console.log "this cool error  " +  err.toString()
-a.Connect ()->
-
-a.on 'message', (msg)=>
-    a.ack(msg)
+b = new HosCom service, 'al-kh.me', 'alikh', 'alikh12358'
+b.Connect () ->
+    for i in [ 1 .. 10000 ]
+        b.SendMessage {u: 'kjh',i: "hjkhkj"} , "service1"
 
 module.exports = HosCom

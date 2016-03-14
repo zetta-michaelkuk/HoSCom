@@ -1,3 +1,6 @@
+class AckMessage
+    ack: null
+
 module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64) ->
     class HoSConsumer extends EventEmitter
         _amqpConnection: null
@@ -21,7 +24,7 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64) ->
                 return conn.createChannel()
 
             .then (ch)=>
-                ch.prefetch(1)
+                ch.prefetch(@_HoSCom._serviceContract.prefetch)
                 ch.on "close", () =>
                     isClosed = true
                 ch.on "error", () =>
@@ -40,9 +43,9 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64) ->
                 HoSExOk.then ()=>
                     ok = @consumeChannel.assertExchange(@_serviceContract.name, 'direct', @_options)
                     ok.then ()=>
-                        @consumeChannel.bindExchange(@_serviceContract.name,"HoS","HoS.#{@_serviceContract.name}.#")
-                        @_CreateQueue "#{@_serviceContract.name}.#{@_serviceId}", "HoS.#{@_serviceContract.name}.#{@_serviceId}"
-                        @_CreateQueue "#{@_serviceContract.name}", "HoS.#{@_serviceContract.name}"
+                        @consumeChannel.bindExchange(@_serviceContract.name,"HoS","#{@_serviceContract.name}.#")
+                        @_CreateQueue "#{@_serviceContract.name}.#{@_serviceId}", "#{@_serviceContract.name}.#{@_serviceId}"
+                        @_CreateQueue "#{@_serviceContract.name}", "#{@_serviceContract.name}"
             else
                 @emit('error', 'no consume channel')
 
@@ -50,12 +53,13 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64) ->
             @consumeChannel.assertQueue(queueName, @_options)
             .then ()=>
                 @consumeChannel.bindQueue(queueName, @_serviceContract.name, bindingKey)
-                @consumeChannel.consume queueName, (msg)=>
-                    @_processMessage(msg)
+                @consumeChannel.consume queueName, (msg)=> @_processMessage(msg)
 
         _processMessage: (msg)->
-            @emit('message', msg)
-            console.log msg
-            doSomething = ()=>
+            ack = (msg)=>
                 @consumeChannel.ack(msg);
-            setTimeout(doSomething, 3000);
+
+            ackMessage = new AckMessage
+            ackMessage.ack = ack
+            @_HoSCom._messagesToAck[msg.properties.correlationId] = ackMessage
+            @emit('message', msg)
