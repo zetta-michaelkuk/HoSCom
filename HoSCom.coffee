@@ -1,66 +1,52 @@
-module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid) ->
-    HoSConsumer = require("./HoSConsumer")(amqp, os, crypto, EventEmitter, URLSafeBase64, uuid)
+module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) ->
+    HoSConsumer     = require("./HoSConsumer")(amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise)
+    HoSPublisher    = require("./HoSPublisher")(amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise)
 
     class HoSCom extends EventEmitter
         _amqpConnection: null
         _serviceContract: null
         _serviceId: null
-        _pendingMessages: []
         _options: {durable: true, autoDelete: true}
         HoSConsumers: []
         _messagesToAck: {}
+        _messagesToReply: {}
+        Publisher: null
 
         constructor: (@_serviceContract, @amqpurl = process.env.AMQP_URL, @username = process.env.AMQP_USERNAME, @password = process.env.AMQP_PASSWORD) ->
             super()
 
             ServiceInfo =
+                ID: crypto.randomBytes(10).toString('hex')
                 CreateOn: Date.now()
                 HostName: os.hostname()
-                ID: crypto.randomBytes(10).toString('hex')
 
             @_serviceId = URLSafeBase64.encode(new Buffer(JSON.stringify ServiceInfo))
 
-        Connect: (callback)->
-            @_amqpConnection = amqp.connect("amqp://#{@username}:#{@password}@#{@amqpurl}")
-
-            @_amqpConnection.then (conn)=>
-                return conn.createChannel()
-            .then (ch)=>
-                @publishChannel = ch
-                @publishChannel.assertExchange("HoS", 'topic', @_options)
-                if typeof callback is 'function'
-                    callback()
-                @publishChannel.on 'error', (err)=>
-                    @emit('error', 'publishChannelError')
-
-            @_amqpConnection.catch (err)=>
-                @emit('error', err)
-
+        connect: (callback)->
+            promises = []
             for i in [1 .. @_serviceContract.consumerNumber]
                 con = new HoSConsumer(@, @amqpurl, @username, @password)
+                promises.push con.connect()
                 con.on 'message', (msg)=>
                     @emit("message", msg)
                 @HoSConsumers[i] = con
 
+            @Publisher = new HoSPublisher(@, @amqpurl, @username, @password)
 
-        SendMessage: (message, destination)->
-            if @publishChannel
-                destinationParts = destination.split '.'
-                destService = destinationParts[0]
-                key = "#{destService}"
-                if destinationParts[1]
-                    key += ".#{destinationParts[1]}"
+            promises.push @Publisher.connect()
 
-                @publishChannel.publish("HoS", key, new Buffer(JSON.stringify message),{correlationId: uuid.v1()})
+            Promise.all(promises).then ()=>
+                if typeof callback is 'function'
+                    callback()
 
-            else
-                @emit('error', 'no publish channel')
+        sendMessage: (payload, destination, headers, callback)->
+            @Publisher.send(payload, destination, headers, callback)
 
         ack: (msg)->
             try
-                @_messagesToAck[msg.properties.correlationId].ack(msg)
-                delete @_messagesToAck[msg.properties.correlationId]
-                return true
+                @_messagesToAck[msg.messageId].ack(msg).then ()=>
+                    delete @_messagesToAck[msg.messageId]
+                    return true
             catch
                 return false
 
