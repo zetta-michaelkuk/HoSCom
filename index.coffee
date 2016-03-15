@@ -4,9 +4,10 @@ crypto          = require('crypto')
 EventEmitter    = require('events')
 URLSafeBase64   = require('urlsafe-base64')
 generalContract = require('./serviceContract')
-uuid            = require('node-uuid');
+uuid            = require('node-uuid')
+Promise         = require('bluebird')
 
-HosCom = require('./HoSCom')(amqp, os, crypto, EventEmitter, URLSafeBase64, uuid)
+HosCom = require('./HoSCom')(amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise)
 
 service1 = JSON.parse(JSON.stringify(generalContract))
 service1.name = "service1"

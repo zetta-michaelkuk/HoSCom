@@ -1,14 +1,14 @@
-module.exports (Promise)->
-  class HoSComChannelManager
+module.exports = (Promise)->
+  class HoSChannelManager
     _freeChannels: []
     _requestQueue: []
 
-    constructor: (@_channelFactory, @_settings = {})->
+    constructor: (@_connection, @_settings = {})->
       @_settings.numChannels ?= 3
 
-      _createChannel() for x in [1..@_settings.numChannels]
+      @_createChannel() for x in [1..@_settings.numChannels]
 
-    getChannel: ()->
+    get: ()->
       @_allocateChannel()
 
     _allocateChannel: ()->
@@ -19,7 +19,7 @@ module.exports (Promise)->
           @_requestQueue.push(resolve)
 
     _createChannel: ()->
-      @_channelFactory.get().then (channel)=>
+      @_connection.createChannel().then (channel)=>
 
         channel.on 'drain', ()=>
           @_channelFreed(channel)
@@ -27,7 +27,6 @@ module.exports (Promise)->
 
         channel.on 'close', ()=>
           @_freeChannels.splice(@_freeChannels.indexOf(channel), 1) unless @_freeChannels.indexOf(channel) is -1
-          delete channel
 
           @_createChannel()
           return
@@ -44,5 +43,3 @@ module.exports (Promise)->
       else
         @_freeChannels.push(channel)
         return
-
-  return ChannelManager
