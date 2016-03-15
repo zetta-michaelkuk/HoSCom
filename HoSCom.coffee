@@ -20,7 +20,6 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid) ->
 
             @_serviceId = URLSafeBase64.encode(new Buffer(JSON.stringify ServiceInfo))
 
-
         Connect: (callback)->
             @_amqpConnection = amqp.connect("amqp://#{@username}:#{@password}@#{@amqpurl}")
 
@@ -36,15 +35,6 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid) ->
 
             @_amqpConnection.catch (err)=>
                 @emit('error', err)
-
-            @on 'error', (msg) =>
-                if msg is "publishChannelError"
-                    @publishChannel = null
-                    @_amqpConnection.then (conn)=>
-                        return conn.createChannel()
-                    .then (ch)=>
-                        @publishChannel = ch
-                        console.log 'recreate channel'
 
             for i in [1 .. @_serviceContract.consumerNumber]
                 con = new HoSConsumer(@, @amqpurl, @username, @password)

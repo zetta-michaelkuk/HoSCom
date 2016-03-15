@@ -41,17 +41,21 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64) ->
             if @consumeChannel
                 HoSExOk = @consumeChannel.assertExchange("HoS", 'topic', @_options)
                 HoSExOk.then ()=>
-                    ok = @consumeChannel.assertExchange(@_serviceContract.name, 'direct', @_options)
+                    ok = @consumeChannel.assertExchange(@_serviceContract.name, 'topic', @_options)
                     ok.then ()=>
                         @consumeChannel.bindExchange(@_serviceContract.name,"HoS","#{@_serviceContract.name}.#")
-                        @_CreateQueue "#{@_serviceContract.name}.#{@_serviceId}", "#{@_serviceContract.name}.#{@_serviceId}"
+                        @_CreateQueue "#{@_serviceContract.name}.#{@_serviceId}", "#{@_serviceContract.name}", @_serviceId
                         @_CreateQueue "#{@_serviceContract.name}", "#{@_serviceContract.name}"
             else
                 @emit('error', 'no consume channel')
 
-        _CreateQueue: (queueName, bindingKey)->
+        _CreateQueue: (queueName, bindingKey, id)->
             @consumeChannel.assertQueue(queueName, @_options)
             .then ()=>
+                if id
+                    @consumeChannel.bindQueue(queueName, @_serviceContract.name, "#{bindingKey}.broadcast")
+                    bindingKey += ".#{id}"
+
                 @consumeChannel.bindQueue(queueName, @_serviceContract.name, bindingKey)
                 @consumeChannel.consume queueName, (msg)=> @_processMessage(msg)
 
