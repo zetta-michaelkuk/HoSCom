@@ -20,9 +20,6 @@
   },
   "homepage": "https://github.com/HoS0/HoSCom#readme",
   "dependencies": {
-    "amqplib": "^0.4.1",
-    "bluebird": "^3.3.4",
-    "urlsafe-base64": "^1.0.0",
     "node-uuid": "^1.4.7"
   }
 }
