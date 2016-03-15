@@ -1,30 +1,30 @@
 module.exports = (Promise, amqp, uuid) ->
-  HoSChannelManager = require('./HoSChannelManager')(Promise)
+    HoSChannelManager = require('./HoSChannelManager')(Promise)
 
-  class HoSPublisher
+    class HoSPublisher
 
-    constructor: (@_hosCom, @amqpurl, @username, @password)->
+        constructor: (@_hosCom, @amqpurl, @username, @password)->
 
 
-    Connect: ()->
-      amqp.connect("amqp://#{@username}:#{@password}@#{@amqpurl}").then (conn)=>
-        @_amqpConnection = conn
-        @_hosChannel = new HoSChannelManager(conn)
+        Connect: ()->
+            amqp.connect("amqp://#{@username}:#{@password}@#{@amqpurl}").then (conn)=>
+                @_amqpConnection = conn
+                @_hosChannel = new HoSChannelManager(conn)
 
-    send: (payload, to, headers)->
-        new Promise (resolve, reject)=>
-            options =
-                headers: headers
-                correlationId: uuid.v1()
-                replyTo: "#{@_hosCom._serviceContract.name}.#{@_hosCom._serviceId}"
+        send: (payload, to, headers)->
+            new Promise (resolve, reject)=>
+                options =
+                    headers: headers
+                    correlationId: uuid.v1()
+                    replyTo: "#{@_hosCom._serviceContract.name}.#{@_hosCom._serviceId}"
 
-            parts = to.split '.'
+                parts = to.split '.'
 
-            routingKey = parts[0]
-            routingKey += ".#{parts[1]}" if parts[1]
+                routingKey = parts[0]
+                routingKey += ".#{parts[1]}" if parts[1]
 
-            message = new Buffer(JSON.stringify(payload))
+                message = new Buffer(JSON.stringify(payload))
 
-            @_hosChannel.get().then (ch)=>
-                @_hosCom._pendingMessages[options.correlationId] = {resolve: resolve, reject: reject}
-                return ch.publish('HoS', routingKey, message, options)
+                @_hosChannel.get().then (ch)=>
+                    @_hosCom._pendingMessages[options.correlationId] = {resolve: resolve, reject: reject}
+                    return ch.publish('HoS', routingKey, message, options)
