@@ -1,46 +1,45 @@
 module.exports = (Promise)->
-    class HoSChannelManager
+  class HoSChannelManager
+    _freeChannels: []
+    _requestQueue: []
 
-        _freeChannels: []
-        _requestQueue: []
+    constructor: (@_connection, @_settings = {})->
+      @_settings.numChannels ?= 3
 
-        constructor: (@_connection, @_settings = {})->
-            @_settings.numChannels ?= 3
+      @_createChannel() for x in [1..@_settings.numChannels]
 
-            @_createChannel() for x in [1..@_settings.numChannels]
+    get: ()->
+      @_allocateChannel()
 
-        get: ()->
-            return @_allocateChannel()
+    _allocateChannel: ()->
+      new Promise (resolve, reject) =>
+        if @_freeChannels.length
+          channel = @_freeChannels.shift()
+        else
+          @_requestQueue.push(resolve)
 
-        _allocateChannel: ()->
-            new Promise (resolve, reject) =>
-                if @_freeChannels.length
-                    channel = @_freeChannels.shift()
-                else
-                    @_requestQueue.push(resolve)
+    _createChannel: ()->
+      @_connection.createChannel().then (channel)=>
 
-        _createChannel: ()->
-            @_connection.createChannel().then (channel)=>
+        channel.on 'drain', ()=>
+          @_channelFreed(channel)
+          return
 
-                channel.on 'drain', ()=>
-                    @_channelFreed(channel)
-                    return
+        channel.on 'close', ()=>
+          @_freeChannels.splice(@_freeChannels.indexOf(channel), 1) unless @_freeChannels.indexOf(channel) is -1
 
-                channel.on 'close', ()=>
-                    @_freeChannels.splice(@_freeChannels.indexOf(channel), 1) unless @_freeChannels.indexOf(channel) is -1
+          @_createChannel()
+          return
 
-                    @_createChannel()
-                    return
+        @_channelFreed(channel)
+        return
 
-                @_channelFreed(channel)
-                return
+    _channelFreed: (channel)->
+      if @_requestQueue.length
+        resolve = @_requestQueue.shift()
+        resolve(channel)
+        return
 
-        _channelFreed: (channel)->
-            if @_requestQueue.length
-                resolve = @_requestQueue.shift()
-                resolve(channel)
-                return
-
-            else
-                @_freeChannels.push(channel)
-                return
+      else
+        @_freeChannels.push(channel)
+        return

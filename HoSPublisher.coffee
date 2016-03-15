@@ -12,19 +12,17 @@ module.exports = (Promise, amqp, uuid) ->
         @_hosChannel = new HoSChannelManager(conn)
 
     send: (payload, to, headers)->
-        new Promise (resolve, reject)=>
-            options =
-                headers: headers
-                correlationId: uuid.v1()
-                replyTo: "#{@_hosCom._serviceContract.name}.#{@_hosCom._serviceId}"
+      new Promise (resolve, reject)=>
+        options =
+          headers: headers
+          correlationId: uuid.v1()
+          replyTo: "#{@_hosCom._serviceContract.name}.#{@_hosCom._serviceId}"
 
-            parts = to.split '.'
+        parts = to.split '.'
 
-            routingKey = parts[0]
-            routingKey += ".#{parts[1]}" if parts[1]
+        routingKey = parts[0]
+        routingKey += ".#{parts[1]}" if parts[1]
 
-            message = new Buffer(JSON.stringify(payload))
-
-            @_hosChannel.get().then (ch)=>
-                @_hosCom._pendingMessages[options.correlationId] = {resolve: resolve, reject: reject}
-                return ch.publish('HoS', routingKey, message, options)
+      @_hosChannel.get().then (ch)=>
+        @_hosCom._pendingMessages[options.correlationId] = {resolve: resolve, reject: reject}
+        ch.publish('HoS', routingKey, payload, options)

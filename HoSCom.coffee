@@ -26,8 +26,31 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
             @_hosPublisher = new HoSPublisher(@, @amqpurl, @username, @password)
 
             @_hosPublisher.Connect().then ()=>
-                if typeof callback is 'function'
-                    callback()
+
+                @_amqpConnection = amqp.connect("amqp://#{@username}:#{@password}@#{@amqpurl}")
+
+                @_amqpConnection.then (conn)=>
+                    return conn.createChannel()
+
+                .then (ch)=>
+                    @publishChannel = ch
+                    @publishChannel.assertExchange("HoS", 'topic', @_options)
+                    if typeof callback is 'function'
+                        callback()
+                    @publishChannel.on 'error', (err)=>
+                        @emit('error', 'publishChannelError')
+
+                @_amqpConnection.catch (err)=>
+                    @emit('error', err)
+
+                @on 'error', (msg) =>
+                    if msg is "publishChannelError"
+                        @publishChannel = null
+                        @_amqpConnection.then (conn)=>
+                            return conn.createChannel()
+                        .then (ch)=>
+                            @publishChannel = ch
+                            console.log 'recreate channel'
 
                 for i in [1 .. @_serviceContract.consumerNumber]
                     con = new HoSConsumer(@, @amqpurl, @username, @password)
