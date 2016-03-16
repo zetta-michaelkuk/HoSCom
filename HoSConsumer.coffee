@@ -82,6 +82,8 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
 
             if msg.properties.replyTo
                 msg.reply = (payload)=>
-                    @_HoSCom.Publisher.sendReply(msg, payload)
+                    ack(msg)
+                    if payload
+                        @_HoSCom.Publisher.sendReply(msg, payload)
 
             @emit('message', msg)

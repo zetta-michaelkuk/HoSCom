@@ -22,7 +22,7 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
 
             @_serviceId = URLSafeBase64.encode(new Buffer(JSON.stringify ServiceInfo))
 
-        connect: (callback)->
+        connect: ()->
             promises = []
             for i in [1 .. @_serviceContract.consumerNumber]
                 con = new HoSConsumer(@, @amqpurl, @username, @password)
@@ -35,9 +35,7 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
 
             promises.push @Publisher.connect()
 
-            Promise.all(promises).then ()=>
-                if typeof callback is 'function'
-                    callback()
+            Promise.all(promises)
 
         sendMessage: (payload, destination, headers, callback)->
             @Publisher.send(payload, destination, headers, callback)

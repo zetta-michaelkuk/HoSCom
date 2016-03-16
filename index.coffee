@@ -15,9 +15,8 @@ service1.name = "service1"
 a = new HosCom service1, 'al-kh.me', 'alikh', 'alikh12358'
 a.on 'error', (err)->
     console.log "this cool error  " +  err.toString()
-a.connect ()->
+a.connect()
 a.on 'message', (msg)=>
-    a.ack(msg)
     msg.reply({"sijfkjdjfhdkjh"})
 
 module.exports = HosCom
