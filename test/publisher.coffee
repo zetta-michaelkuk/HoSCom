@@ -14,5 +14,3 @@ b.connect().then ()=>
 
 b.on 'message', (msg)=>
     console.log msg
-
-module.exports = HosCom

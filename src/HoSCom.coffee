@@ -27,6 +27,8 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
             for i in [1 .. @_serviceContract.consumerNumber]
                 con = new HoSConsumer(@, @amqpurl, @username, @password)
                 promises.push con.connect()
+                con.on 'error', (msg)=>
+                    # console.log msg
                 con.on 'message', (msg)=>
                     @emit("message", msg)
                 @HoSConsumers[i] = con
@@ -47,5 +49,11 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
                     return true
             catch
                 return false
+
+        destroy: ()->
+            for i in [1 .. @_serviceContract.consumerNumber]
+                @HoSConsumers[i]._amqpConnection.close()
+
+            @Publisher._amqpConnection.close()
 
     return HoSCom

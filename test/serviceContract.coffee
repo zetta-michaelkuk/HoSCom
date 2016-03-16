@@ -83,7 +83,7 @@ serviceInfo =
   version: '0.1.0'
   description: 'Allmighty service for user management and interaction'
   tasks: tasks
-  prefetch: 5
-  consumerNumber: 10
+  prefetch: 1
+  consumerNumber: 1
 
 module.exports = serviceInfo

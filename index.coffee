@@ -15,7 +15,9 @@ service1.name = "service1"
 a = new HosCom service1, 'al-kh.me', 'alikh', 'alikh12358'
 a.on 'error', (err)->
     console.log "this cool error  " +  err.toString()
-a.connect()
+a.connect().then ()=>
+    # a.destroy()
+
 a.on 'message', (msg)=>
     msg.reply({"sijfkjdjfhdkjh"})
 

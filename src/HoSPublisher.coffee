@@ -15,9 +15,10 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
                 @_serviceContract = @_HoSCom._serviceContract
                 @_serviceId = @_HoSCom._serviceId
 
-                @_amqpConnection = amqp.connect("amqp://#{@username}:#{@password}@#{@amqpurl}")
+                connectionOk = amqp.connect("amqp://#{@username}:#{@password}@#{@amqpurl}")
 
-                @_amqpConnection.then (conn)=>
+                connectionOk.then (conn)=>
+                    @_amqpConnection = conn
                     return conn.createChannel()
 
                 .then (ch)=>
@@ -34,7 +35,7 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
                         @emit('error', 'no publish channel')
                         reject()
 
-                @_amqpConnection.catch (err)=>
+                connectionOk.catch (err)=>
                     @isClosed = true
                     @emit('error', err)
                     reject()
