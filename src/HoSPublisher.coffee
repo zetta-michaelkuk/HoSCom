@@ -11,28 +11,26 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
             super()
 
         connect: ()->
-            new Promise (resolve, reject)=>
-                @_serviceContract = @_HoSCom._serviceContract
-                @_serviceId = @_HoSCom._serviceId
+            @_serviceContract = @_HoSCom._serviceContract
+            @_serviceId = @_HoSCom._serviceId
 
-                connectionOk = amqp.connect("amqp://#{@username}:#{@password}@#{@amqpurl}")
+            connectionOk = amqp.connect("amqp://#{@username}:#{@password}@#{@amqpurl}")
 
-                connectionOk.then (conn)=>
-                    @_amqpConnection = conn
-                    return conn.createChannel()
+            connectionOk.then (conn)=>
+                @_amqpConnection = conn
+                return conn.createChannel()
 
-                .then (ch)=>
-                    ch.on "close", () =>
-                        isClosed = true
-                    ch.on "error", () =>
-                        isClosed = true
-                    @publishChannel = ch
-                    @publishChannel.assertExchange("HoS", 'topic', {durable: true}).then ()=>
-                        resolve()
+            .then (ch)=>
+                ch.on "close", () =>
+                    isClosed = true
+                ch.on "error", () =>
+                    isClosed = true
+                @publishChannel = ch
+                @publishChannel.assertExchange("HoS", 'topic', {durable: true})
 
-                connectionOk.catch (err)=>
-                    @isClosed = true
-                    @emit('error', err)
+            connectionOk.catch (err)=>
+                @isClosed = true
+                @emit('error', err)
 
 
         send: (paylaod, destination, headers, callback)->
@@ -50,7 +48,7 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
                 rep.reply = callback
                 @_HoSCom._messagesToReply[sendOption.correlationId] = rep
 
-            return @publishChannel.publish("HoS", key, new Buffer(JSON.stringify paylaod),sendOption)
+            @publishChannel.publish("HoS", key, new Buffer(JSON.stringify paylaod),sendOption)
 
         sendReply: (message, payload)->
             sendOption = {messageId: uuid.v1(), timestamp: message.properties.timestamp, headers: message.properties.headers}
