@@ -50,11 +50,11 @@ describe "Create service", ()->
 
     it "and it sends a message and get the reply", (done)->
         @serviceCon = JSON.parse(JSON.stringify(generalContract))
-        @serviceCon.name = "serviceTest"
+        @serviceCon.name = "service4Test"
         @service1 = new HosCom @serviceCon, amqpurl, username, password
 
         @serviceCon2 = JSON.parse(JSON.stringify(generalContract))
-        @serviceCon2.name = "service2Test"
+        @serviceCon2.name = "service5Test"
         @service2 = new HosCom @serviceCon2, amqpurl, username, password
 
         @service1.connect().then ()=>
