@@ -6,10 +6,10 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
         _amqpConnection: null
         _serviceContract: null
         _serviceId: null
-        _options: {durable: true, autoDelete: true}
-        isClosed: false
 
         constructor: (@_HoSCom, @amqpurl = process.env.AMQP_URL, @username = process.env.AMQP_USERNAME, @password = process.env.AMQP_PASSWORD) ->
+            @_options= {durable: true, autoDelete: true}
+            @isClosed= false
             super()
 
         connect: ()->
@@ -40,30 +40,36 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
                     reject()
 
         _CreatServiceExchange: ()->
-            if @consumeChannel
-                HoSExOk = @consumeChannel.assertExchange("HoS", 'topic', @_options)
-                HoSExOk.then ()=>
-                    ok = @consumeChannel.assertExchange(@_serviceContract.name, 'topic', @_options)
-                    ok.then ()=>
-                        res = []
-                        @consumeChannel.bindExchange(@_serviceContract.name,"HoS","#{@_serviceContract.name}.#")
-                        res.push @_CreateQueue "#{@_serviceContract.name}.#{@_serviceId}", "#{@_serviceContract.name}", @_serviceId
-                        res.push @_CreateQueue "#{@_serviceContract.name}", "#{@_serviceContract.name}"
+            new Promise (resolve, reject)=>
+                if @consumeChannel
+                    HoSExOk = @consumeChannel.assertExchange("HoS", 'topic', {durable: true})
+                    HoSExOk.then ()=>
+                        ok = @consumeChannel.assertExchange(@_serviceContract.name, 'topic', @_options)
+                        ok.then ()=>
+                            res = []
+                            @consumeChannel.bindExchange(@_serviceContract.name,"HoS","#{@_serviceContract.name}.#")
+                            res.push @_CreateQueue "#{@_serviceContract.name}.#{@_serviceId}", "#{@_serviceContract.name}", @_serviceId
+                            res.push @_CreateQueue "#{@_serviceContract.name}", "#{@_serviceContract.name}"
 
-                        Promise.all(res)
+                            Promise.all(res).then ()=>
+                                resolve()
+                else
+                    @emit('error', 'no consume channel')
+                    reject()
 
         _CreateQueue: (queueName, bindingKey, id)->
-            @consumeChannel.assertQueue(queueName, @_options)
-            .then ()=>
-                promisses = []
-                if id
-                    promisses.push @consumeChannel.bindQueue(queueName, @_serviceContract.name, "#{bindingKey}.broadcast")
-                    bindingKey += ".#{id}"
+            new Promise (resolve, reject)=>
+                @consumeChannel.assertQueue(queueName, @_options)
+                .then ()=>
+                    if id
+                        bindingKey += ".#{id}"
 
-                promisses.push @consumeChannel.bindQueue(queueName, @_serviceContract.name, bindingKey)
-                promisses.push @consumeChannel.consume queueName, (msg)=> @_processMessage(msg).then ()=>
-
-                Promise.all promisses
+                    @consumeChannel.bindQueue(queueName, @_serviceContract.name, bindingKey).then ()=>
+                        @consumeChannel.bindQueue(queueName, @_serviceContract.name, "#{bindingKey}.broadcast").then ()=>
+                            pm = (msg)=>
+                                @_processMessage(msg)
+                            @consumeChannel.consume(queueName, pm).then ()=>
+                                resolve()
 
         _processMessage: (msg)->
             if @_HoSCom._messagesToReply[msg.properties.correlationId]
@@ -76,14 +82,9 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
             ack = (msg)=>
                 @consumeChannel.ack(msg)
 
-            ackMessage = new AckMessage
-            ackMessage.ack = ack
-            @_HoSCom._messagesToAck[msg.messageId] = ackMessage
-
-            if msg.properties.replyTo
-                msg.reply = (payload)=>
-                    ack(msg)
-                    if payload
-                        @_HoSCom.Publisher.sendReply(msg, payload)
+            msg.reply = (payload)=>
+                ack(msg)
+                if payload and msg.properties.replyTo
+                    @_HoSCom.Publisher.sendReply(msg, payload)
 
             @emit('message', msg)

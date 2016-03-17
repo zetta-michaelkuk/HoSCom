@@ -2,12 +2,16 @@ generalContract = require('./serviceContract')
 
 HosCom = require('../index')
 
-service = JSON.parse(JSON.stringify(generalContract))
-service.name = "service3"
-count = 1
-b = new HosCom service, 'al-kh.me', 'alikh', 'alikh12358'
-b.connect().then ()=>
-  b.destroy()
+services = []
+instances = []
 
-b.on 'message', (msg)=>
-    console.log msg
+for i in [0 .. 20]
+    serviceCon = JSON.parse(JSON.stringify(generalContract))
+    serviceCon.name = "serviceTest#{i}"
+    ins = new HosCom(serviceCon, 'al-kh.me', 'alikh', 'alikh12358')
+    instances.push(ins)
+    services.push(ins.connect())
+
+Promise.all(services).then ()->
+    for s in instances
+        s.destroy()

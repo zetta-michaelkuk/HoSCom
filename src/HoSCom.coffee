@@ -3,16 +3,13 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
     HoSPublisher    = require("./HoSPublisher")(amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise)
 
     class HoSCom extends EventEmitter
-        _amqpConnection: null
         _serviceContract: null
         _serviceId: null
-        _options: {durable: true, autoDelete: true}
-        HoSConsumers: []
-        _messagesToAck: {}
-        _messagesToReply: {}
         Publisher: null
 
         constructor: (@_serviceContract, @amqpurl = process.env.AMQP_URL, @username = process.env.AMQP_USERNAME, @password = process.env.AMQP_PASSWORD) ->
+            @HoSConsumers = []
+            @_messagesToReply = {}
             super()
 
             ServiceInfo =
@@ -24,14 +21,14 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
 
         connect: ()->
             promises = []
-            for i in [1 .. @_serviceContract.consumerNumber]
+            for i in [0 .. @_serviceContract.consumerNumber - 1]
                 con = new HoSConsumer(@, @amqpurl, @username, @password)
                 promises.push con.connect()
                 con.on 'error', (msg)=>
                     # console.log msg
                 con.on 'message', (msg)=>
                     @emit("message", msg)
-                @HoSConsumers[i] = con
+                @HoSConsumers.push con
 
             @Publisher = new HoSPublisher(@, @amqpurl, @username, @password)
 
@@ -40,20 +37,13 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
             Promise.all(promises)
 
         sendMessage: (payload, destination, headers, callback)->
-            @Publisher.send(payload, destination, headers, callback)
-
-        ack: (msg)->
-            try
-                @_messagesToAck[msg.messageId].ack(msg).then ()=>
-                    delete @_messagesToAck[msg.messageId]
-                    return true
-            catch
-                return false
+            return @Publisher.send(payload, destination, headers, callback)
 
         destroy: ()->
-            for i in [1 .. @_serviceContract.consumerNumber]
-                @HoSConsumers[i]._amqpConnection.close()
-
             @Publisher._amqpConnection.close()
+
+            for con in @HoSConsumers
+                con._amqpConnection.close()
+
 
     return HoSCom

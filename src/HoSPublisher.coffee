@@ -4,10 +4,10 @@ class ReplyMessage
 module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) ->
     class HoSConsumer extends EventEmitter
         _amqpConnection: null
-        _options: {durable: true, autoDelete: true}
-        isClosed: false
 
         constructor: (@_HoSCom, @amqpurl = process.env.AMQP_URL, @username = process.env.AMQP_USERNAME, @password = process.env.AMQP_PASSWORD) ->
+            @_options = {durable: true, autoDelete: true}
+            isClosed = false
             super()
 
         connect: ()->
@@ -26,19 +26,13 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
                         isClosed = true
                     ch.on "error", () =>
                         isClosed = true
-
                     @publishChannel = ch
-                    if @publishChannel
-                        @publishChannel.assertExchange("HoS", 'topic', @_options)
+                    @publishChannel.assertExchange("HoS", 'topic', {durable: true}).then ()=>
                         resolve()
-                    else
-                        @emit('error', 'no publish channel')
-                        reject()
 
                 connectionOk.catch (err)=>
                     @isClosed = true
                     @emit('error', err)
-                    reject()
 
 
         send: (paylaod, destination, headers, callback)->
@@ -56,7 +50,7 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
                 rep.reply = callback
                 @_HoSCom._messagesToReply[sendOption.correlationId] = rep
 
-            @publishChannel.publish("HoS", key, new Buffer(JSON.stringify paylaod),sendOption)
+            return @publishChannel.publish("HoS", key, new Buffer(JSON.stringify paylaod),sendOption)
 
         sendReply: (message, payload)->
             sendOption = {messageId: uuid.v1(), timestamp: message.properties.timestamp, headers: message.properties.headers}
