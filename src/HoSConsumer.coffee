@@ -75,7 +75,7 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
             if @_HoSCom._messagesToReply[msg.properties.correlationId]
                 @consumeChannel.ack(msg)
                 if typeof @_HoSCom._messagesToReply[msg.properties.correlationId].reply is 'function'
-                    @_HoSCom._messagesToReply[msg.properties.correlationId].reply()
+                    @_HoSCom._messagesToReply[msg.properties.correlationId].reply(JSON.parse msg.content)
                     delete @_HoSCom._messagesToReply[msg.properties.correlationId]
                 return
 

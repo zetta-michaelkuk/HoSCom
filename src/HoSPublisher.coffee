@@ -56,4 +56,4 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
             sendOption = {messageId: uuid.v1(), timestamp: message.properties.timestamp, headers: message.properties.headers}
             sendOption.correlationId = message.properties.correlationId
 
-            @publishChannel.publish("HoS", message.properties.replyTo, new Buffer(JSON.stringify paylaod),sendOption)
+            @publishChannel.publish("HoS", message.properties.replyTo, new Buffer(JSON.stringify payload),sendOption)
