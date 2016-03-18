@@ -1,6 +1,3 @@
-class ReplyMessage
-    reply: null
-
 module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) ->
     class HoSConsumer extends EventEmitter
         _amqpConnection: null
@@ -33,22 +30,24 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
                 @emit('error', err)
 
 
-        send: (paylaod, destination, headers, callback)->
-            sendOption = {messageId: uuid.v1(), timestamp: Date.now(), headers: headers}
-            destinationParts = destination.split '.'
-            destService = destinationParts[0]
-            sendOption.correlationId = sendOption.messageId
+        send: (paylaod, destination, headers, isReplyNeeded)->
+            return new Promise (fullfil, reject)=>
+                sendOption = {messageId: uuid.v1(), timestamp: Date.now(), headers: headers}
+                destinationParts = destination.split '.'
+                destService = destinationParts[0]
+                sendOption.correlationId = sendOption.messageId
 
-            key = "#{destService}"
-            key += ".#{destinationParts[1]}" if destinationParts[1]
+                key = "#{destService}"
+                key += ".#{destinationParts[1]}" if destinationParts[1]
 
-            if typeof callback is 'function'
-                sendOption.replyTo = "#{@_serviceContract.name}.#{@_serviceId}"
-                rep = new ReplyMessage
-                rep.reply = callback
-                @_HoSCom._messagesToReply[sendOption.correlationId] = rep
+                if isReplyNeeded
+                    sendOption.replyTo = "#{@_serviceContract.name}.#{@_serviceId}"
+                    @_HoSCom._messagesToReply[sendOption.correlationId] = {fullfil: fullfil, reject: reject}
 
-            @publishChannel.publish("HoS", key, new Buffer(JSON.stringify paylaod),sendOption)
+                @publishChannel.publish("HoS", key, new Buffer(JSON.stringify paylaod),sendOption)
+
+                if !isReplyNeeded
+                    fullfil()
 
         sendReply: (message, payload)->
             sendOption = {messageId: uuid.v1(), timestamp: message.properties.timestamp, headers: message.properties.headers}

@@ -27,7 +27,7 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
                 con.on 'error', (msg)=>
                     # console.log msg
                 con.on 'message', (msg)=>
-                    @emit("message", msg)
+                    @_processMessage(msg)
                 @HoSConsumers.push con
 
             @Publisher = new HoSPublisher(@, @amqpurl, @username, @password)
@@ -36,8 +36,8 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
 
             Promise.all(promises)
 
-        sendMessage: (payload, destination, headers, callback)->
-            return @Publisher.send(payload, destination, headers, callback)
+        sendMessage: (payload, destination, headers, isReplyNeeded = true)->
+            return @Publisher.send(payload, destination, headers, isReplyNeeded)
 
         destroy: ()->
             @Publisher._amqpConnection.close()
@@ -45,5 +45,18 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
             for con in @HoSConsumers
                 con._amqpConnection.close()
 
+        _processMessage: (msg)->
+            task    = msg.properties.headers.task
+            method  = msg.properties.headers.method
+
+            if task is 'contract' and method is 'GET'
+                msg.reply(@_serviceContract)
+                return
+
+            if task and method and @_serviceContract.tasks[task]
+                @emit("#{task}.#{method}", msg)
+                return
+
+            msg.reject("this service is not offering the following task.", 404)
 
     return HoSCom

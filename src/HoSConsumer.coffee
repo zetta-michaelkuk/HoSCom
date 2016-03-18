@@ -66,19 +66,36 @@ module.exports = (amqp, os, crypto, EventEmitter, URLSafeBase64, uuid, Promise) 
                         @consumeChannel.consume(queueName, pm)
 
         _processMessage: (msg)->
-            if @_HoSCom._messagesToReply[msg.properties.correlationId]
-                @consumeChannel.ack(msg)
-                if typeof @_HoSCom._messagesToReply[msg.properties.correlationId].reply is 'function'
-                    @_HoSCom._messagesToReply[msg.properties.correlationId].reply(JSON.parse msg.content)
-                    delete @_HoSCom._messagesToReply[msg.properties.correlationId]
+            if @_processRepliedMessage msg
                 return
 
-            ack = (msg)=>
-                @consumeChannel.ack(msg)
+            if msg.content # TODO specify content type (JSON) on publisher and check here the type
+                msg.content = JSON.parse msg.content
 
             msg.reply = (payload)=>
-                ack(msg)
+                @consumeChannel.ack(msg)
                 if payload and msg.properties.replyTo
                     @_HoSCom.Publisher.sendReply(msg, payload)
 
+            msg.reject = (reason, code = 500)=>
+                @consumeChannel.ack(msg)
+                msg.properties.headers.error = code
+                msg.properties.headers.errorMessage = reason
+                if reason and msg.properties.replyTo
+                    @_HoSCom.Publisher.sendReply(msg, {error: reason})
+
             @emit('message', msg)
+
+        _processRepliedMessage: (msg)->
+            if @_HoSCom._messagesToReply[msg.properties.correlationId]
+                @consumeChannel.ack(msg)
+                rep = @_HoSCom._messagesToReply[msg.properties.correlationId]
+                if typeof rep.fullfil is 'function'
+                    if msg.properties.headers.error
+                        rep.reject({code: msg.properties.headers.error,reason: msg.properties.headers.errorMessage})
+                    else
+                        rep.fullfil(JSON.parse msg.content)
+
+                    delete @_HoSCom._messagesToReply[msg.properties.correlationId]
+                    return true
+            return false

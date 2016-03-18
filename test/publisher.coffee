@@ -1,25 +1,31 @@
 generalContract = require('./serviceContract')
 HosCom          = require('../index')
 
-amqpurl     = process.env.AMQP_URL ? "al-kh.me"
+amqpurl     = process.env.AMQP_URL ? "localhost"
 username    = process.env.AMQP_USERNAME ? "alikh"
 password    = process.env.AMQP_PASSWORD ? "alikh12358"
 
-
 @serviceCon = JSON.parse(JSON.stringify(generalContract))
-@serviceCon.name = "serviceTest"
+@serviceCon.name = "service4Test"
 @service1 = new HosCom @serviceCon, amqpurl, username, password
 
 @serviceCon2 = JSON.parse(JSON.stringify(generalContract))
-@serviceCon2.name = "service2Test"
+@serviceCon2.name = "service5Test"
 @service2 = new HosCom @serviceCon2, amqpurl, username, password
 
 @service1.connect().then ()=>
     @service2.connect().then ()=>
-        @service2.sendMessage {foo: "bar"} , @serviceCon.name, {}, (msg)->
-            console.log msg
-
+        @service2.sendMessage({} , @serviceCon.name, {task: 'jjcontract', method: 'GET'})
+        .then (replyPayload)=>
+            console.log replyPayload
+            #if replyPayload.foo is 'notbar'
+            @service2.destroy()
+            @service1.destroy()
+        .catch (reason)=>
+            console.log reason
+            @service2.destroy()
+            @service1.destroy()
 
 @service1.on 'message', (msg)=>
-    console.log "-----------"
-    msg.reply({foo: "notbar"})
+    console.log msg
+    msg.reply(msg.content)
